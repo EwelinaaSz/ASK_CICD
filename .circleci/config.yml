@@ -9,11 +9,8 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run:
-         name: Build docker containers
-         command: docker-compose up -d
-         
-         
+
+      
   testowanie_serwera:
     executor:
       name: node/default
@@ -23,23 +20,45 @@ jobs:
           app-dir: ./server
       - run:
           command: npm install
-          working_directory: ./server
+          working_directory: ./server  
       - run:
+          name: Running server tests
           command: npm test
           working_directory: ./server
-          
+                    
   testowanie_klienta:
     executor:
       name: node/default
     steps:
-      - checkout
+      - checkout       
       - run:
           command: npm install
-          working_directory: ./client
+          working_directory: ./client      
       - run:
+          name: Running server tests
           command: npm test
           working_directory: ./client
           
+  create_docker_images:
+    machine: true
+    steps:
+      - checkout          
+      - run:
+          command: |
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "ewelinaszczupak" --password-stdin
+            sudo docker build ./db -t ewelinaszczupak/database_image_2020
+            sudo docker push ewelinaszczupak/database_image_2020:latest
+      - run:
+          command: |
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "ewelinaszczupak" --password-stdin
+            sudo docker build ./server -t ewelinaszczupak/server_image_2020
+            sudo docker push ewelinaszczupak/server_image_2020
+      - run:
+          command: |
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "ewelinaszczupak" --password-stdin
+            sudo docker build ./client -t ewelinaszczupak/client_image_2020
+            sudo docker push ewelinaszczupak/client_image_2020
+
           
 workflows:
     build-and-test:
@@ -63,3 +82,8 @@ workflows:
                   - master
             requires:
                 - build
+                
+        - create_docker_images:
+            requires:
+              - testowanie_serwera
+              - testowanie_klienta
